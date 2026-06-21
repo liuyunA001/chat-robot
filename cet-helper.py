@@ -5,18 +5,18 @@
 日期：2025
 """
 
-import导入 streamlit as作为Streamlitas作为 st在
-from从 openai import导入OpenAIimport导入 OpenAI
-import导入 os
-from从 dotenv import导入 load_dotenv
-from从 datetime import导入 datetime
-import导入 random导入随机模块
-import导入 time导入时间模块
+import streamlit as st
+from openai import OpenAI
+import os
+from dotenv import load_dotenv
+from datetime import datetime
+import random
+import time
 
-load_dotenv()加载环境变量文件
+load_dotenv()
 
 # ====================== 页面配置 ======================
-st.set_page_config(设置页面配置（
+st.set_page_config(
     page_title="四六级备考小助手",
     page_icon="🧸",
     layout="wide",
@@ -53,7 +53,6 @@ MODULES = {
     "段落匹配": {"icon": "🔗", "system_prompt": "你是一位资深四六级段落匹配专家..."},
     "长难句拆解": {"icon": "🔍", "system_prompt": "你是一位资深四六级长难句分析专家..."}
 }
-# 注意：以上为占位，实际使用请粘贴完整 prompt。
 
 # ====================== 全局 CSS（温柔马卡龙风格 + 侧边栏细节优化） ======================
 st.markdown("""
@@ -563,17 +562,17 @@ with tabs[2]:
     st.session_state.current_sub_module = "作文批改"
     render_chat_area("作文润色", "writing")
 
-with tabs[3]:
+with tabs[3]:带选项卡[3]:
     st.session_state.current_tab = "口语陪练"
     st.session_state.current_sub_module = "口语对话模拟"
     render_chat_area("口语陪练", "speaking")
 
 # ====================== 截图保存 ======================
-if st.session_state.messages:
+if st.session_state.messages:如果在会话状态.消息:
     st.download_button(
         label="📸 保存笔记",
-        data=generate_screenshot_html(),
-        file_name=f"备考笔记_{datetime.now().strftime('%Y%m%d_%H%M')}.html",
+        data=generate_screenshot_html(),        数据=生成截图HTML(),
+        file_name=f"备考笔记_{datetime.now().strftime('%Y%m%d_%H%M')}.html",        文件名=f"备考笔记_{datetime.now().strftime'%Y%m%d_%H%M'}.html",
         mime="text/html",
         help="保存当前聊天记录为HTML文件"
     )
