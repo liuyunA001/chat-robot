@@ -563,12 +563,12 @@ with tabs[2]:
     render_chat_area("作文润色", "writing")
 
 with tabs[3]:带选项卡[3]:
-    st.session_state.current_tab = "口语陪练"
+    st.session_state会话状态.current_tab当前选项卡 = "口语陪练"
     st.session_state.current_sub_module = "口语对话模拟"
     render_chat_area("口语陪练", "speaking")
 
 # ====================== 截图保存 ======================
-if st.session_state.messages:如果在会话状态.消息:
+if st.session_state.messages:如果在会话状态.消息:如果在会话状态.消息:
     st.download_button(
         label="📸 保存笔记",
         data=generate_screenshot_html(),        数据=生成截图HTML(),
