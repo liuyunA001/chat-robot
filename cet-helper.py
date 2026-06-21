@@ -1,8 +1,6 @@
 """
 四六级全能备考AI聊天机器人 - 温柔马卡龙风格（侧边栏细节优化）
 功能：单词打卡、每日背诵、作文润色、口语陪练
-作者：学生姓名
-日期：2025
 """
 
 import streamlit as st
@@ -42,29 +40,26 @@ if "daily_checked" not in st.session_state:
     st.session_state.daily_checked = False
 
 # ====================== 功能模块 System Prompt ======================
-# 请将以下占位替换为您的完整 prompt（之前已有）
 MODULES = {
-    "单词释义": {"icon": "📖", "system_prompt": "你是一位资深四六级词汇专家..."},
-    "作文批改": {"icon": "✍️", "system_prompt": "你是一位资深四六级作文阅卷老师..."},
-    "翻译专项": {"icon": "🌐", "system_prompt": "你是一位资深四六级翻译专家..."},
-    "口语对话模拟": {"icon": "🗣️", "system_prompt": "你是一位资深四六级口语考官..."},
-    "阅读解析": {"icon": "📚", "system_prompt": "你是一位资深四六级阅读专家..."},
+    "单词释义": {"icon": "📖", "system_prompt": "你是一位资深四六级词汇专家，帮助学生理解单词、短语的用法..."},
+    "作文批改": {"icon": "✍️", "system_prompt": "你是一位资深四六级作文阅卷老师，批改作文并给出评分和建议..."},
+    "翻译专项": {"icon": "🌐", "system_prompt": "你是一位资深四六级翻译专家，帮助学生练习中英互译..."},
+    "口语对话模拟": {"icon": "🗣️", "system_prompt": "你是一位资深四六级口语考官，进行模拟口语考试..."},
+    "阅读解析": {"icon": "📚", "system_prompt": "你是一位资深四六级阅读专家，分析阅读文章和题目..."},
     "选词填空": {"icon": "📝", "system_prompt": "你是一位资深四六级选词填空专家..."},
     "段落匹配": {"icon": "🔗", "system_prompt": "你是一位资深四六级段落匹配专家..."},
-    "长难句拆解": {"icon": "🔍", "system_prompt": "你是一位资深四六级长难句分析专家..."}
+    "长难句拆解": {"icon": "🔍", "system_prompt": "你是一位资深四六级长难句分析专家，拆解复杂句子结构..."}
 }
 
-# ====================== 全局 CSS（温柔马卡龙风格 + 侧边栏细节优化） ======================
+# ====================== 全局 CSS ======================
 st.markdown("""
 <style>
-    /* 全局背景 */
     .stApp {
         background: #faf0f5 !important;
         font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
         color: #3d2c4a;
         overflow-x: hidden;
     }
-    /* 柔光浮动粒子 */
     .stApp::before {
         content: '📚 📖 ✏️ 📝 🔤 A B C 📘 📙 📗 ✨';
         position: fixed;
@@ -92,7 +87,6 @@ st.markdown("""
         position: relative;
         z-index: 1;
     }
-    /* 侧边栏基础 */
     [data-testid="stSidebar"] {
         background: #fff9f0 !important;
         border-radius: 0 30px 30px 0;
@@ -101,7 +95,6 @@ st.markdown("""
         padding: 1.5rem 0.8rem;
         margin: 0.5rem 0 0.5rem 0.2rem;
     }
-    /* 侧边栏所有文字颜色（强制） */
     [data-testid="stSidebar"] * {
         color: #3d2c4a !important;
     }
@@ -113,7 +106,6 @@ st.markdown("""
         font-size: 0.9rem !important;
         padding: 0.5rem 1rem !important;
     }
-    /* 修复 expander 展开后背景变黑的问题 */
     [data-testid="stSidebar"] .stExpander {
         background: rgba(255, 255, 255, 0.8) !important;
         border-radius: 20px !important;
@@ -135,7 +127,6 @@ st.markdown("""
     [data-testid="stSidebar"] .stExpander > header:hover {
         background: rgba(240, 224, 232, 0.5) !important;
     }
-    /* 卡片样式 - 今日打卡专用 */
     .sidebar-card {
         background: rgba(255, 255, 255, 0.85);
         backdrop-filter: blur(4px);
@@ -180,7 +171,6 @@ st.markdown("""
         font-size: 0.75rem;
         font-weight: 600;
     }
-    /* 主标题 */
     .main-title {
         font-size: 2.4rem;
         font-weight: 700;
@@ -196,7 +186,6 @@ st.markdown("""
         font-weight: 400;
         margin-bottom: 1.8rem;
     }
-    /* 聊天气泡 */
     .user-message {
         background: #f0e8f5;
         color: #3d2c4a;
@@ -239,7 +228,6 @@ st.markdown("""
         0% { opacity: 0; transform: translateY(12px); }
         100% { opacity: 1; transform: translateY(0); }
     }
-    /* 输入框 */
     .stChatInput textarea {
         border: 2px solid #e8dcee !important;
         border-radius: 30px !important;
@@ -254,7 +242,6 @@ st.markdown("""
         border-color: #c9b1d0 !important;
         box-shadow: 0 0 0 4px rgba(201, 177, 208, 0.15) !important;
     }
-    /* 按钮 */
     .stButton button {
         background: #c9b1d0;
         color: white;
@@ -274,7 +261,6 @@ st.markdown("""
     .stButton button:active {
         transform: scale(0.96);
     }
-    /* Tabs */
     .stTabs [role="tablist"] {
         border-bottom: 2px solid #e8dcee;
         gap: 0.5rem;
@@ -297,15 +283,6 @@ st.markdown("""
         border-bottom: 4px solid #c9b1d0;
         font-weight: 600;
     }
-    /* 文件上传 */
-    .upload-area {
-        background: #f8f0f8;
-        border: 2px dashed #dcc8e6;
-        border-radius: 24px;
-        padding: 1.2rem;
-        text-align: center;
-        margin-bottom: 1rem;
-    }
     .stAlert {
         border-radius: 20px;
         background: #f5edf9 !important;
@@ -323,7 +300,6 @@ st.markdown("""
         background: #dcc8e6;
         border-radius: 10px;
     }
-    /* 移动端适配 */
     @media (max-width: 768px) {
         .stApp {
             padding: 0.5rem;
@@ -400,7 +376,6 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     
-    # 卡片：今日打卡（紧凑布局）
     with st.container():
         st.markdown("""
         <div class="sidebar-card">
@@ -417,7 +392,6 @@ with st.sidebar:
             st.markdown("<span class='checked-badge'>✓ 已打卡</span>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
     
-    # 错题本（expander 背景已修复）
     with st.expander("❌ 错题本", expanded=False):
         st.caption("记录你的易错点")
         with st.form(key="add_wrong"):
@@ -435,7 +409,6 @@ with st.sidebar:
         else:
             st.info("暂无错题，继续加油！")
     
-    # 词汇本
     with st.expander("📖 词汇本", expanded=False):
         st.caption("积累高频词汇")
         with st.form(key="add_vocab"):
@@ -563,12 +536,12 @@ with tabs[2]:
     render_chat_area("作文润色", "writing")
 
 with tabs[3]:带选项卡[3]:
-    st.session_state会话状态.current_tab当前选项卡 = "口语陪练"
+    st.session_state会话状态会话状态.current_tab当前选项卡 = "口语陪练".当前选项卡 = "口语陪练"
     st.session_state.current_sub_module = "口语对话模拟"
     render_chat_area("口语陪练", "speaking")
 
 # ====================== 截图保存 ======================
-if st.session_state.messages:如果在会话状态.消息:如果在会话状态.消息:
+if st.session_state.messages:如果在会话状态.消息如果在会话状态.消息:如果在会话状态.消息:
     st.download_button(
         label="📸 保存笔记",
         data=generate_screenshot_html(),        数据=生成截图HTML(),
