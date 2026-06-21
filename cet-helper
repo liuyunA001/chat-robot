@@ -1,0 +1,587 @@
+"""
+四六级全能备考AI聊天机器人 - 温柔马卡龙风格（侧边栏细节优化）
+功能：单词打卡、每日背诵、作文润色、口语陪练
+作者：学生姓名
+日期：2025
+"""
+
+import streamlit as st
+from openai import OpenAI
+import os
+from dotenv import load_dotenv
+from datetime import datetime
+import random
+import time
+
+load_dotenv()
+
+# ====================== 页面配置 ======================
+st.set_page_config(
+    page_title="四六级备考小助手",
+    page_icon="🧸",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# ====================== 初始化 Session State ======================
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "current_tab" not in st.session_state:
+    st.session_state.current_tab = "单词打卡"
+if "current_sub_module" not in st.session_state:
+    st.session_state.current_sub_module = "单词释义"
+if "client" not in st.session_state:
+    api_key = os.getenv("DEEPSEEK_API_KEY", "")
+    base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
+    st.session_state.client = OpenAI(api_key=api_key, base_url=base_url) if api_key else None
+if "wrong_questions" not in st.session_state:
+    st.session_state.wrong_questions = []
+if "vocabulary_book" not in st.session_state:
+    st.session_state.vocabulary_book = []
+if "daily_checked" not in st.session_state:
+    st.session_state.daily_checked = False
+
+# ====================== 功能模块 System Prompt ======================
+# 请将以下占位替换为您的完整 prompt（之前已有）
+MODULES = {
+    "单词释义": {"icon": "📖", "system_prompt": "你是一位资深四六级词汇专家..."},
+    "作文批改": {"icon": "✍️", "system_prompt": "你是一位资深四六级作文阅卷老师..."},
+    "翻译专项": {"icon": "🌐", "system_prompt": "你是一位资深四六级翻译专家..."},
+    "口语对话模拟": {"icon": "🗣️", "system_prompt": "你是一位资深四六级口语考官..."},
+    "阅读解析": {"icon": "📚", "system_prompt": "你是一位资深四六级阅读专家..."},
+    "选词填空": {"icon": "📝", "system_prompt": "你是一位资深四六级选词填空专家..."},
+    "段落匹配": {"icon": "🔗", "system_prompt": "你是一位资深四六级段落匹配专家..."},
+    "长难句拆解": {"icon": "🔍", "system_prompt": "你是一位资深四六级长难句分析专家..."}
+}
+# 注意：以上为占位，实际使用请粘贴完整 prompt。
+
+# ====================== 全局 CSS（温柔马卡龙风格 + 侧边栏细节优化） ======================
+st.markdown("""
+<style>
+    /* 全局背景 */
+    .stApp {
+        background: #faf0f5 !important;
+        font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+        color: #3d2c4a;
+        overflow-x: hidden;
+    }
+    /* 柔光浮动粒子 */
+    .stApp::before {
+        content: '📚 📖 ✏️ 📝 🔤 A B C 📘 📙 📗 ✨';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 0;
+        font-size: 2rem;
+        opacity: 0.08;
+        white-space: pre-wrap;
+        word-break: break-all;
+        animation: floatParticles 20s linear infinite;
+        color: #c9b1d0;
+    }
+    @keyframes floatParticles {
+        0% { transform: translate(0, 0) rotate(0deg); }
+        25% { transform: translate(30px, -20px) rotate(2deg); }
+        50% { transform: translate(-20px, 30px) rotate(-2deg); }
+        75% { transform: translate(20px, -10px) rotate(1deg); }
+        100% { transform: translate(0, 0) rotate(0deg); }
+    }
+    .main, .block-container {
+        position: relative;
+        z-index: 1;
+    }
+    /* 侧边栏基础 */
+    [data-testid="stSidebar"] {
+        background: #fff9f0 !important;
+        border-radius: 0 30px 30px 0;
+        border: 2px solid #f0e0e8;
+        box-shadow: 4px 0 20px rgba(201, 177, 208, 0.15);
+        padding: 1.5rem 0.8rem;
+        margin: 0.5rem 0 0.5rem 0.2rem;
+    }
+    /* 侧边栏所有文字颜色（强制） */
+    [data-testid="stSidebar"] * {
+        color: #3d2c4a !important;
+    }
+    [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] h4 {
+        color: #5b3e6e !important;
+    }
+    [data-testid="stSidebar"] .stButton button {
+        color: white !important;
+        font-size: 0.9rem !important;
+        padding: 0.5rem 1rem !important;
+    }
+    /* 修复 expander 展开后背景变黑的问题 */
+    [data-testid="stSidebar"] .stExpander {
+        background: rgba(255, 255, 255, 0.8) !important;
+        border-radius: 20px !important;
+        border: 1px solid #f0e0e8 !important;
+        margin-bottom: 0.8rem;
+    }
+    [data-testid="stSidebar"] .stExpander > div {
+        background: rgba(255, 255, 255, 0.8) !important;
+        border-radius: 0 0 20px 20px !important;
+        padding: 0.5rem 1rem !important;
+    }
+    [data-testid="stSidebar"] .stExpander > header {
+        background: rgba(255, 255, 255, 0.5) !important;
+        border-radius: 20px !important;
+        padding: 0.5rem 1rem !important;
+        font-weight: 600 !important;
+        color: #5b3e6e !important;
+    }
+    [data-testid="stSidebar"] .stExpander > header:hover {
+        background: rgba(240, 224, 232, 0.5) !important;
+    }
+    /* 卡片样式 - 今日打卡专用 */
+    .sidebar-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(4px);
+        border-radius: 24px;
+        padding: 0.8rem 1rem 0.6rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 6px 18px rgba(201, 177, 208, 0.12);
+        border: 1px solid #f0e0e8;
+        transition: 0.3s;
+    }
+    .sidebar-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(201, 177, 208, 0.18);
+    }
+    .sidebar-card .icon-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 1.2rem;
+        color: #b392c0;
+        margin-bottom: 4px;
+    }
+    .sidebar-card .icon-row span:first-child {
+        font-size: 1.6rem;
+    }
+    .sidebar-card .icon-row span:last-child {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #5b3e6e;
+    }
+    .sidebar-card p {
+        margin: 2px 0 8px;
+        color: #8a7a94;
+        font-size: 0.85rem;
+    }
+    .checked-badge {
+        display: inline-block;
+        background: #b392c0;
+        color: white !important;
+        border-radius: 40px;
+        padding: 2px 14px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    /* 主标题 */
+    .main-title {
+        font-size: 2.4rem;
+        font-weight: 700;
+        color: #5b3e6e;
+        text-align: center;
+        margin-bottom: 0.2rem;
+        letter-spacing: 0.5px;
+    }
+    .sub-title {
+        text-align: center;
+        color: #9a8aa4;
+        font-size: 1.05rem;
+        font-weight: 400;
+        margin-bottom: 1.8rem;
+    }
+    /* 聊天气泡 */
+    .user-message {
+        background: #f0e8f5;
+        color: #3d2c4a;
+        border-radius: 30px 30px 6px 30px;
+        padding: 16px 22px;
+        margin: 12px 0 12px auto;
+        max-width: 75%;
+        box-shadow: 0 4px 12px rgba(201, 177, 208, 0.15);
+        word-wrap: break-word;
+        animation: fadeIn 0.4s ease-out;
+        border: 1px solid rgba(255,255,255,0.4);
+    }
+    .assistant-message {
+        background: linear-gradient(135deg, #ffffff, #f9f0fd);
+        color: #3d2c4a;
+        border-radius: 30px 30px 30px 6px;
+        padding: 16px 22px;
+        margin: 12px auto 12px 0;
+        max-width: 75%;
+        box-shadow: 0 4px 16px rgba(201, 177, 208, 0.12);
+        word-wrap: break-word;
+        animation: fadeIn 0.4s ease-out;
+        border: 1px solid rgba(255,255,255,0.6);
+    }
+    .user-avatar, .assistant-avatar {
+        display: inline-block;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 36px;
+        font-size: 18px;
+        margin-right: 10px;
+        float: left;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .user-avatar { background: #dcc8e6; color: #5b3e6e; }
+    .assistant-avatar { background: #c9b1d0; color: white; }
+    @keyframes fadeIn {
+        0% { opacity: 0; transform: translateY(12px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    /* 输入框 */
+    .stChatInput textarea {
+        border: 2px solid #e8dcee !important;
+        border-radius: 30px !important;
+        padding: 14px 20px !important;
+        background: #ffffff !important;
+        color: #3d2c4a !important;
+        font-size: 15px;
+        transition: 0.2s;
+        box-shadow: 0 2px 10px rgba(201, 177, 208, 0.08);
+    }
+    .stChatInput textarea:focus {
+        border-color: #c9b1d0 !important;
+        box-shadow: 0 0 0 4px rgba(201, 177, 208, 0.15) !important;
+    }
+    /* 按钮 */
+    .stButton button {
+        background: #c9b1d0;
+        color: white;
+        border: none;
+        border-radius: 40px;
+        padding: 12px 32px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 16px rgba(201, 177, 208, 0.25);
+        letter-spacing: 0.5px;
+    }
+    .stButton button:hover {
+        background: #b392c0;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 28px rgba(201, 177, 208, 0.35);
+    }
+    .stButton button:active {
+        transform: scale(0.96);
+    }
+    /* Tabs */
+    .stTabs [role="tablist"] {
+        border-bottom: 2px solid #e8dcee;
+        gap: 0.5rem;
+    }
+    .stTabs [role="tab"] {
+        font-weight: 500;
+        color: #8a7a94;
+        padding: 0.7rem 1.4rem;
+        border-radius: 40px 40px 0 0;
+        transition: 0.2s;
+        background: transparent;
+    }
+    .stTabs [role="tab"]:hover {
+        background: #f5edf9;
+        color: #5b3e6e;
+    }
+    .stTabs [role="tab"][aria-selected="true"] {
+        color: #5b3e6e;
+        background: #f5edf9;
+        border-bottom: 4px solid #c9b1d0;
+        font-weight: 600;
+    }
+    /* 文件上传 */
+    .upload-area {
+        background: #f8f0f8;
+        border: 2px dashed #dcc8e6;
+        border-radius: 24px;
+        padding: 1.2rem;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    .stAlert {
+        border-radius: 20px;
+        background: #f5edf9 !important;
+        color: #5b3e6e !important;
+        border-left: 5px solid #c9b1d0;
+    }
+    ::-webkit-scrollbar {
+        width: 5px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #f5edf9;
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #dcc8e6;
+        border-radius: 10px;
+    }
+    /* 移动端适配 */
+    @media (max-width: 768px) {
+        .stApp {
+            padding: 0.5rem;
+        }
+        [data-testid="stSidebar"] {
+            border-radius: 20px;
+            margin: 0.2rem;
+            padding: 0.8rem 0.5rem;
+        }
+        .main-title {
+            font-size: 1.8rem;
+        }
+        .user-message, .assistant-message {
+            max-width: 90%;
+            padding: 12px 16px;
+        }
+        .stTabs [role="tab"] {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.9rem;
+        }
+        .stButton button {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ====================== 辅助函数 ======================
+def get_system_prompt(tab, sub=None):
+    if tab == "每日背诵" and sub:
+        sub_map = {
+            "长难句拆解": "长难句拆解",
+            "翻译专项": "翻译专项",
+            "阅读解析": "阅读解析",
+            "选词填空": "选词填空",
+            "段落匹配": "段落匹配"
+        }
+        key = sub_map.get(sub, "长难句拆解")
+    else:
+        mapping = {
+            "单词打卡": "单词释义",
+            "作文润色": "作文批改",
+            "口语陪练": "口语对话模拟"
+        }
+        key = mapping.get(tab, "单词释义")
+    return MODULES[key]["system_prompt"]
+
+def generate_screenshot_html():
+    html = f"""
+    <html><head><meta charset='utf-8'><title>四六级备考笔记</title>
+    <style>body {{ font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 30px; background: #faf0f5; }}
+    .header {{ text-align: center; margin-bottom: 30px; }}
+    .message {{ margin: 15px 0; padding: 15px; border-radius: 30px; }}
+    .user-message {{ background: #f0e8f5; margin-left: auto; max-width: 80%; }}
+    .assistant-message {{ background: #ffffff; margin-right: auto; max-width: 80%; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
+    .footer {{ text-align: center; margin-top: 30px; color: #9a8aa4; }}
+    </style></head><body>
+    <div class='header'><h1 style='color:#5b3e6e;'>📚 备考笔记</h1><p>{st.session_state.current_tab} · {datetime.now().strftime('%Y-%m-%d %H:%M')}</p></div>
+    """
+    for msg in st.session_state.messages:
+        cls = "user-message" if msg["role"] == "user" else "assistant-message"
+        html += f"<div class='message {cls}'>{msg['content']}</div>"
+    html += "<div class='footer'>四六级备考小助手</div></body></html>"
+    return html
+
+# ====================== 侧边栏 ======================
+with st.sidebar:
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 1.2rem;">
+        <div style="font-size: 2.8rem;">🧸</div>
+        <h2 style="color: #5b3e6e; margin: 0; font-size: 1.6rem;">备考小窝</h2>
+        <p style="color: #9a8aa4; font-size: 0.85rem;">温柔陪伴，轻松上岸</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 卡片：今日打卡（紧凑布局）
+    with st.container():
+        st.markdown("""
+        <div class="sidebar-card">
+            <div class="icon-row">
+                <span>📅</span>
+                <span>今日打卡</span>
+            </div>
+            <p style="margin: 2px 0 6px; font-size: 0.85rem; color: #8a7a94;">每天进步一点点</p>
+        """, unsafe_allow_html=True)
+        if st.button("✅ 打卡", key="daily_check", use_container_width=True):
+            st.session_state.daily_checked = True
+            st.success("今日打卡完成！🎉")
+        if st.session_state.daily_checked:
+            st.markdown("<span class='checked-badge'>✓ 已打卡</span>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # 错题本（expander 背景已修复）
+    with st.expander("❌ 错题本", expanded=False):
+        st.caption("记录你的易错点")
+        with st.form(key="add_wrong"):
+            wrong_input = st.text_area("错题内容", placeholder="粘贴或输入", height=70)
+            if st.form_submit_button("➕ 收藏"):
+                if wrong_input.strip():
+                    st.session_state.wrong_questions.append(wrong_input.strip())
+                    st.success("已收藏")
+        if st.session_state.wrong_questions:
+            for i, item in enumerate(st.session_state.wrong_questions):
+                st.markdown(f"- {item}")
+                if st.button(f"删除 {i}", key=f"del_wrong_{i}"):
+                    del st.session_state.wrong_questions[i]
+                    st.rerun()
+        else:
+            st.info("暂无错题，继续加油！")
+    
+    # 词汇本
+    with st.expander("📖 词汇本", expanded=False):
+        st.caption("积累高频词汇")
+        with st.form(key="add_vocab"):
+            vocab_input = st.text_input("词汇", placeholder="输入单词")
+            if st.form_submit_button("➕ 添加"):
+                if vocab_input.strip():
+                    st.session_state.vocabulary_book.append(vocab_input.strip())
+                    st.success("已添加")
+        if st.session_state.vocabulary_book:
+            for i, word in enumerate(st.session_state.vocabulary_book):
+                st.markdown(f"- {word}")
+                if st.button(f"删除 {i}", key=f"del_vocab_{i}"):
+                    del st.session_state.vocabulary_book[i]
+                    st.rerun()
+        else:
+            st.info("还没有词汇，来添加吧")
+    
+    st.markdown("---")
+    st.markdown("### 📊 小进步")
+    col1, col2 = st.columns(2)
+    col1.metric("对话次数", len(st.session_state.messages))
+    col2.metric("收藏错题", len(st.session_state.wrong_questions))
+    st.metric("词汇本", len(st.session_state.vocabulary_book))
+    
+    if st.button("🗑️ 清空对话", use_container_width=True):
+        st.session_state.messages = []
+        st.rerun()
+
+# ====================== 主页面 ======================
+st.markdown('<h1 class="main-title">🧸 四六级备考小助手</h1>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">温柔陪伴 · 轻松学习 · 每日进步</p>', unsafe_allow_html=True)
+
+tabs = st.tabs(["📖 单词打卡", "📚 每日背诵", "✍️ 作文润色", "🗣️ 口语陪练"])
+tab_names = ["单词打卡", "每日背诵", "作文润色", "口语陪练"]
+
+def render_chat_area(tab_name, tab_key):
+    if tab_name in ["作文润色"]:
+        uploaded_file = st.file_uploader(
+            "📎 上传作文图片（可选）",
+            type=["png", "jpg", "jpeg", "gif"],
+            label_visibility="collapsed",
+            key=f"upload_{tab_key}"
+        )
+        if uploaded_file:
+            st.image(uploaded_file, width=250)
+            st.caption("已上传，可描述问题")
+
+    chat_container = st.container()
+    with chat_container:
+        if not st.session_state.messages:
+            st.markdown("""
+            <div class='assistant-message' style='margin-top:20px;'>
+                <span class='assistant-avatar'>🧸</span>
+                <div style='display:inline-block;'>
+                    <p style='margin:0;'>👋 嗨！我是你的备考小助手～<br>选择功能，输入你的问题，我们一起轻松学习吧！</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            quotes = ["💪 今天也要加油哦！", "🌟 每天进步一点点～", "📚 知识就是力量！"]
+            st.markdown(f"""
+            <div style='background:#f5edf9; border-radius:30px; padding:0.8rem 1.2rem; margin:1rem 0; text-align:center; color:#6b4d7a;'>
+                {random.choice(quotes)}
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            for msg in st.session_state.messages:
+                if msg["role"] == "user":
+                    st.markdown(f"<div class='user-message'>{msg['content']}</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<div class='assistant-message'>{msg['content']}</div>", unsafe_allow_html=True)
+
+    prompt = st.chat_input("输入你的问题...", key=f"chat_{tab_key}")
+    if prompt:
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.markdown(f"<div class='user-message'>{prompt}</div>", unsafe_allow_html=True)
+        
+        sub = None
+        if tab_name == "每日背诵":
+            sub = st.session_state.current_sub_module
+        system_prompt = get_system_prompt(tab_name, sub)
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(st.session_state.messages)
+        
+        try:
+            response = st.session_state.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=2000,
+                stream=True
+            )
+            full_response = ""
+            placeholder = st.empty()
+            for chunk in response:
+                if chunk.choices[0].delta.content:
+                    content = chunk.choices[0].delta.content
+                    full_response += content
+                    placeholder.markdown(f"<div class='assistant-message'>{full_response}</div>", unsafe_allow_html=True)
+                    time.sleep(0.015)
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+        except Exception as e:
+            st.error(f"❌ 出错啦：{str(e)}")
+            st.stop()
+
+with tabs[0]:
+    st.session_state.current_tab = "单词打卡"
+    st.session_state.current_sub_module = "单词释义"
+    render_chat_area("单词打卡", "word")
+
+with tabs[1]:
+    st.session_state.current_tab = "每日背诵"
+    sub_choice = st.radio(
+        "选择背诵内容",
+        ["长难句拆解", "翻译专项", "阅读解析", "选词填空", "段落匹配"],
+        horizontal=True,
+        key="daily_sub",
+        label_visibility="collapsed"
+    )
+    st.session_state.current_sub_module = sub_choice
+    render_chat_area("每日背诵", "daily")
+
+with tabs[2]:
+    st.session_state.current_tab = "作文润色"
+    st.session_state.current_sub_module = "作文批改"
+    render_chat_area("作文润色", "writing")
+
+with tabs[3]:
+    st.session_state.current_tab = "口语陪练"
+    st.session_state.current_sub_module = "口语对话模拟"
+    render_chat_area("口语陪练", "speaking")
+
+# ====================== 截图保存 ======================
+if st.session_state.messages:
+    st.download_button(
+        label="📸 保存笔记",
+        data=generate_screenshot_html(),
+        file_name=f"备考笔记_{datetime.now().strftime('%Y%m%d_%H%M')}.html",
+        mime="text/html",
+        help="保存当前聊天记录为HTML文件"
+    )
+
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; color: #9a8aa4; font-size: 0.9rem; padding-bottom: 0.5rem;">
+    <p>🧸 四六级备考小助手 · 温柔陪伴 · 轻松上岸</p>
+    <p>💡 请确保已配置 DEEPSEEK_API_KEY</p>
+</div>
+""", unsafe_allow_html=True)
