@@ -5,18 +5,18 @@
 日期：2025
 """
 
-import streamlit as st
-from openai import OpenAI
-import os
-from dotenv import load_dotenv
-from datetime import datetime
-import random
-import time
+import导入 streamlit as作为Streamlitas作为 st在
+from从 openai import导入OpenAIimport导入 OpenAI
+import导入 os
+from从 dotenv import导入 load_dotenv
+from从 datetime import导入 datetime
+import导入 random导入随机模块
+import导入 time导入时间模块
 
-load_dotenv()
+load_dotenv()加载环境变量文件
 
 # ====================== 页面配置 ======================
-st.set_page_config(
+st.set_page_config(设置页面配置（
     page_title="四六级备考小助手",
     page_icon="🧸",
     layout="wide",
